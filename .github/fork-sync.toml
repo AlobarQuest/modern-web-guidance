@@ -1,0 +1,32 @@
+# fork-sync declaration (docs/operations/onboarding-a-fork.md in AlobarQuest/orchestrator).
+# modern-web-guidance: a Claude Code plugin of two skills (markdown guides), installed on the
+# operator machine by tool_installer's plugin strategy. Its root package.json carries the version
+# and a `bin` entry but no dependencies and no scripts. The skill's CLI is not in this repository:
+# upstream builds it in GoogleChrome/modern-web-guidance-src and publishes it to npm at the same
+# version, and the tool installer installs that exact release (code-standards ADR-0010).
+upstream = "GoogleChrome/modern-web-guidance"
+ecosystem = "npm-no-deps"
+release_tag_pattern = '^v(\d+\.\d+\.\d+)$'
+# Upstream ships no tests. The installer pins the CLI to package.json's version and the plugin is
+# installed at plugin.json's, so the three manifests must name one version or the skill and CLI
+# disagree (the CLI then tells the agent to make the user update).
+test_commands = [
+  """node -e 'const r=f=>JSON.parse(require("fs").readFileSync(f,"utf8")); const v=[r("package.json").version, r(".claude-plugin/plugin.json").version, r(".claude-plugin/marketplace.json").plugins.find(p=>p.name==="modern-web-guidance").version]; if (new Set(v).size!==1) { console.error("manifest versions differ: "+v.join(" ")); process.exit(1) } console.log("manifest version "+v[0])'""",
+]
+
+[review]
+# The skills tell an agent with tools which commands to run, and package.json's `bin` names the
+# CLI the installer pins; every change to them is read by a person.
+paths_watched = [
+  "skills/*/SKILL.md",
+  ".claude-plugin/*",
+  "package.json",
+  "policies/*",
+]
+# Everything an agent loads into context when a skill fires: a prompt-injection surface.
+trust_critical = [
+  "skills/*",
+]
+# A patch release (v1.0.0 to v1.0.1) is about 180,000 characters of diff; v0.0.197 to v1.0.0 was
+# about 940,000, so the default 400,000 would turn a minor release's review into a size finding.
+max_diff_chars = 1000000
